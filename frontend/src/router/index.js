@@ -42,11 +42,6 @@ export const constantRoutes = [
     component: () => import('@/views/login'),
     hidden: true
   },
-  // {
-  //   path: '/register',
-  //   component: () => import('@/views/register'),
-  //   hidden: true
-  // },
   {
     path: "/:pathMatch(.*)*",
     component: () => import('@/views/error/404'),
@@ -89,6 +84,12 @@ export const constantRoutes = [
     component: () => import('@/views/qiksearch/search/index'),
     name: 'Search',
     meta: { title: '搜索', icon: 'search' }
+  },
+  {
+    path: '/s-dev',
+    component: () => import('@/views/qiksearch/search-dev/index'),
+    name: 'Search-Dev',
+    meta: { title: '搜索(测试版)', icon: 'search' }
   },
   {
     path: '/a',

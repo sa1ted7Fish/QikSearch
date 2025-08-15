@@ -56,6 +56,46 @@
         </div>
       </section>
 
+      <!-- 更新日志 -->
+      <section class="changelog-section">
+        <h2 class="section-title">更新日志</h2>
+        <div class="changelog-timeline">
+          <!-- 最新版本 -->
+          <div class="changelog-item latest">
+            <div class="version-badge">v1.2.0</div>
+            <div class="changelog-content">
+              <div class="update-date">2025-08-15</div>
+              <h3 class="update-title">搜索体验优化</h3>
+              <ul class="update-details">
+                <li>新增搜索（测试版），搜索（测试版）过滤了相关性较低的结果，如果结果为空自动跳转到百度搜索</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="changelog-item latest">
+            <div class="version-badge">v1.1.0</div>
+            <div class="changelog-content">
+              <div class="update-date">2025-08-14</div>
+              <h3 class="update-title">搜索体验优化</h3>
+              <ul class="update-details">
+                <li>优化结果排序，较新的文章排得更靠前</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="changelog-item">
+            <div class="version-badge">v1.0.0</div>
+            <div class="changelog-content">
+              <div class="update-date">2025-08-13</div>
+              <h3 class="update-title">系统正式发布</h3>
+              <ul class="update-details">
+                <li>基础搜索功能上线</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- 问题反馈 -->
       <section class="feedback-section">
         <div class="feedback-card">
@@ -221,6 +261,113 @@
   }
 }
 
+// 更新日志区域
+.changelog-section {
+  padding: 20px 0 60px;
+  position: relative;
+
+  .changelog-timeline {
+    position: relative;
+    max-width: 800px;
+    margin: 0 auto;
+    padding-left: 20px;
+
+    // 时间线竖线
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background-color: #e0e0e0;
+      border-radius: 2px;
+    }
+  }
+
+  .changelog-item {
+    position: relative;
+    padding: 20px 0 20px 30px;
+    margin-bottom: 10px;
+
+    // 时间点
+    &::before {
+      content: '';
+      position: absolute;
+      left: -22px;
+      top: 24px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background-color: #4285f4;
+      border: 4px solid #e8f0fe;
+      z-index: 1;
+    }
+
+    // 最新版本高亮
+    &.latest {
+      &::before {
+        background-color: #34a853;
+        transform: scale(1.2);
+      }
+    }
+
+    .version-badge {
+      position: absolute;
+      left: -100px;
+      top: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #4285f4;
+      padding: 3px 10px;
+      background-color: #e8f0fe;
+      border-radius: 12px;
+      white-space: nowrap;
+
+      @media (max-width: 768px) {
+        position: relative;
+        left: 0;
+        top: 0;
+        margin-bottom: 10px;
+        display: inline-block;
+      }
+    }
+
+    .changelog-content {
+      background-color: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+
+      .update-date {
+        font-size: 13px;
+        color: #888;
+        margin: 0 0 10px;
+      }
+
+      .update-title {
+        font-size: 18px;
+        color: #333;
+        margin: 0 0 15px;
+        font-weight: 600;
+      }
+
+      .update-details {
+        margin: 0;
+        padding-left: 20px;
+        list-style-type: disc;
+        color: #666;
+        font-size: 14px;
+        line-height: 1.8;
+
+        li {
+          margin-bottom: 6px;
+        }
+      }
+    }
+  }
+}
+
 // 问题反馈区域
 .feedback-section {
   padding: 30px 0 60px;
@@ -316,6 +463,14 @@
     width: 100%;
     padding: 14px 20px !important;
   }
+
+  // 调整更新日志在移动端显示
+  .changelog-timeline {
+    padding-left: 10px;
+  }
+
+  .changelog-item {
+    padding-left: 20px;
+  }
 }
 </style>
-

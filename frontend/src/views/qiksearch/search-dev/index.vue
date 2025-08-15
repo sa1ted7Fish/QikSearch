@@ -100,7 +100,7 @@
 </template>
 
 <script>
-import { getList } from "@/api/qiksearch/search";
+import { getList } from "@/api/qiksearch-dev/search";
 
 export default {
   name: "Search",
@@ -145,6 +145,12 @@ export default {
         this.tableData = response.rows;
         this.total = response.total;
         this.loading = false;
+
+        // 新增：结果为空时自动跳转百度
+        if (this.total === 0) {
+          this.goToSearchEngine('baidu');
+        }
+
       }).catch(() => {
         this.loading = false;
         this.$message.error('搜索失败，请稍后重试');

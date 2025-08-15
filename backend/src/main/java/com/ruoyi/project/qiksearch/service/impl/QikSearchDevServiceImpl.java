@@ -1,9 +1,8 @@
 package com.ruoyi.project.qiksearch.service.impl;
 
+import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.framework.web.page.TableDataInfo;
-import com.ruoyi.project.qiksearch.service.IQikSearchService;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
+import com.ruoyi.project.qiksearch.service.IQikSearchDevService;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
@@ -21,7 +20,6 @@ import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import com.ruoyi.common.utils.StringUtils;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -31,7 +29,7 @@ import java.util.*;
  * Elasticsearch搜索服务实现
  */
 @Service
-public class QikSearchServiceImpl implements IQikSearchService {
+public class QikSearchDevServiceImpl implements IQikSearchDevService {
 
     @Autowired
     private RestHighLevelClient esClient;
@@ -123,78 +121,61 @@ public class QikSearchServiceImpl implements IQikSearchService {
         return rspData;
     }
 
-    @Override
-    public boolean addQuestion(String questionContent) throws IOException {
-        if (StringUtils.isEmpty(questionContent)) {
-            return false;
-        }
-
-        // 构建文档数据
-        Map<String, Object> document = new HashMap<>();
-        document.put("title", "题库"); // 固定标题为"题库"
-        document.put("full_text", questionContent); // 题目内容
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-        String formattedDate = sdf.format(new Date());
-        document.put("date", formattedDate);
-        document.put("category", "题库");
-
-        // 创建索引请求
-        IndexRequest request = new IndexRequest(INDEX_NAME);
-
-        request.source(document);
-
-        // 执行索引操作
-        IndexResponse response = esClient.index(request, RequestOptions.DEFAULT);
-
-        // 判断是否创建成功
-        return "CREATED".equals(response.getResult().name()) ||
-                "UPDATED".equals(response.getResult().name());
-    }
-
     public static SearchSourceBuilder buildUniversalQuery(String keyword) {
+        // 创建搜索源构建器
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+
+        // 构建bool查询（对应ES中的bool.should）
         BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
 
-        // 1. 最高优先级：完整查询句精确匹配（完全一致的文档）
-        boolQuery.should(QueryBuilders.termQuery("full_text.keyword", keyword))
-                .boost(10.0f);  // 权重最高，确保完全匹配的文档排在最前
+        // 1. term查询（full_text.keyword精确匹配，boost=10.0）
+        boolQuery.should(QueryBuilders.termQuery("full_text.keyword", keyword)
+                .boost(10.0f));
 
-        // 2. 高优先级：严格短语匹配（词项连续，允许极少量间隔如标点）
+        // 2. 严格短语匹配（slop=1，boost=9.0）
         boolQuery.should(QueryBuilders.matchPhraseQuery("full_text", keyword)
-                .slop(1)  // 允许1个间隔（适应标点、空格等）
-                .boost(9.0f));  // 次高权重，完整句子优先
+                .slop(1)
+                .boost(9.0f));
 
-        // 3. 中高优先级：宽松短语匹配（词项顺序大致一致，允许有限打乱）
+        // 3. 宽松短语匹配（slop=3，boost=7.0）
         boolQuery.should(QueryBuilders.matchPhraseQuery("full_text", keyword)
-                .slop(3)  // 允许3个间隔（适应语序微调，如“发展西部”和“西部发展”）
-                .boost(7.0f));  // 权重高于单纯词频匹配
+                .slop(3)
+                .boost(7.0f));
 
-        // 4. 基础匹配：必须包含所有词项（排除部分匹配，但弱化词频影响）
+        // 4. 基础匹配（AND逻辑，100%匹配，ik_max_word分词，boost=3.0）
         boolQuery.should(QueryBuilders.matchQuery("full_text", keyword)
                 .analyzer("ik_max_word")
-                .operator(Operator.AND)  // 强制包含所有词项（完整句子必满足）
-                .minimumShouldMatch("100%")  // 与AND配合，确保不遗漏词项
-                .boost(3.0f));  // 权重较低，避免词频主导
+                .operator(Operator.AND)
+                .minimumShouldMatch("100%")
+                .boost(3.0f));
 
-        // 5. 兜底匹配：仅保留高相关性（过滤低质文档）
+        // 5. 兜底匹配（80%匹配，boost=1.0）
         boolQuery.should(QueryBuilders.matchQuery("full_text", keyword)
-                .minimumShouldMatch("80%")  // 需匹配大部分词项
-                .boost(1.0f));  // 最低权重
+                .minimumShouldMatch("80%")
+                .boost(1.0f));
 
-        // 6. 保留日期衰减（不影响核心排序逻辑）
+        // 构建日期衰减函数（gauss函数，参数与ES一致）
         FunctionScoreQueryBuilder.FilterFunctionBuilder gaussFunction =
                 new FunctionScoreQueryBuilder.FilterFunctionBuilder(
                         ScoreFunctionBuilders.gaussDecayFunction(
-                                "date", "now", "60d", "7d", 0.8
+                                "date",       // 日期字段
+                                "now",        // 原点（当前时间）
+                                "60d",        // 缩放因子（60天）
+                                "7d",         // 偏移量（7天）
+                                0.8f          // 衰减系数
                         )
                 );
 
+        // 构建function_score查询（组合bool查询和衰减函数）
         FunctionScoreQueryBuilder functionScoreQuery = QueryBuilders.functionScoreQuery(
-                boolQuery,
-                new FunctionScoreQueryBuilder.FilterFunctionBuilder[]{gaussFunction}
-        ).boostMode(CombineFunction.MULTIPLY);
+                boolQuery,  // 基础查询
+                new FunctionScoreQueryBuilder.FilterFunctionBuilder[]{gaussFunction}  // 函数数组
+        ).boostMode(CombineFunction.MULTIPLY);  // 得分组合方式（相乘）
 
+        // 设置查询和最小得分阈值
         sourceBuilder.query(functionScoreQuery);
+        sourceBuilder.minScore(20.0f);
+
         return sourceBuilder;
     }
 }
