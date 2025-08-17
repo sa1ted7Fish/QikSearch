@@ -1,40 +1,24 @@
 <template>
   <div class="login-container">
     <!-- 背景装饰元素 -->
-    <div class="bg-decoration top-left"></div>
-    <div class="bg-decoration bottom-right"></div>
+    <div class="bg-gradient"></div>
 
     <el-form ref="loginRef" :model="loginForm" :rules="loginRules" class="login-card">
       <!-- 品牌区域 -->
       <div class="brand-area">
-        <span
-            style="
-      font-size: 28px;
-      font-weight: 600;
-      letter-spacing: -0.5px;
-      line-height: 1.2;
-      text-rendering: optimizeLegibility;
-      -webkit-font-smoothing: antialiased;
-      background: linear-gradient(90deg, #4285f4, #34a853);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    "
-        >
-    {{ title }}
-  </span>
+        <span class="google-logo">Q</span>
+        <span class="app-name">{{ title }}</span>
       </div>
 
-      <h3 class="login-title">登录您的账户</h3>
+      <h1 class="login-title">登录您的账户</h1>
 
       <el-form-item prop="username">
         <el-input
             v-model="loginForm.username"
             type="text"
             size="large"
-            auto-complete="off"
-            placeholder="账号"
+            auto-complete="username"
+            placeholder="电子邮件或电话号码"
             class="custom-input"
         >
           <template #prefix><svg-icon icon-class="user" class="input-icon" /></template>
@@ -46,7 +30,7 @@
             v-model="loginForm.password"
             type="password"
             size="large"
-            auto-complete="off"
+            auto-complete="current-password"
             placeholder="密码"
             @keyup.enter="handleLogin"
             class="custom-input"
@@ -72,9 +56,11 @@
       </el-form-item>
 
       <div class="form-actions">
-        <el-checkbox v-model="loginForm.rememberMe" class="remember-checkbox">
-          记住密码
-        </el-checkbox>
+        <div class="form-options">
+          <el-checkbox v-model="loginForm.rememberMe" class="remember-checkbox">
+            记住密码
+          </el-checkbox>
+        </div>
 
         <el-button
             :loading="loading"
@@ -87,11 +73,6 @@
           <span v-else>登录中...</span>
         </el-button>
 
-        <div v-if="register" class="register-link-container">
-          <router-link class="register-link" :to="'/register'">
-            立即注册
-          </router-link>
-        </div>
       </div>
     </el-form>
 
@@ -100,7 +81,7 @@
       <div class="footer-links">
         <a href="#" class="footer-link">帮助</a>
         <a href="#" class="footer-link">隐私政策</a>
-        <a href="#" class="footer-link">条款</a>
+        <a href="#" class="footer-link">服务条款</a>
       </div>
       <p class="copyright">{{ new Date().getFullYear() }} © {{ title }}</p>
     </footer>
@@ -115,7 +96,7 @@ import useUserStore from '@/store/modules/user'
 import { useRoute, useRouter } from 'vue-router'
 import { getCurrentInstance, ref, watch } from 'vue'
 
-const title = import.meta.env.VITE_APP_TITLE
+const title = import.meta.env.VITE_APP_TITLE || 'Google 账户'
 const userStore = useUserStore()
 const route = useRoute()
 const router = useRouter()
@@ -130,15 +111,14 @@ const loginForm = ref({
 })
 
 const loginRules = {
-  username: [{ required: true, trigger: "blur", message: "请输入您的账号" }],
-  password: [{ required: true, trigger: "blur", message: "请输入您的密码" }],
+  username: [{ required: true, trigger: "blur", message: "请输入用户名" }],
+  password: [{ required: true, trigger: "blur", message: "请输入密码" }],
   code: [{ required: true, trigger: "change", message: "请输入验证码" }]
 }
 
 const codeUrl = ref("")
 const loading = ref(false)
 const captchaEnabled = ref(true)
-const register = ref(false)
 const redirect = ref(undefined)
 const refreshCodeText = ref("点击刷新验证码")
 
@@ -181,7 +161,7 @@ function handleLogin() {
 
 function getCode() {
   // 加载时显示占位状态
-  codeUrl.value = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40' viewBox='0 0 120 40'%3E%3Crect width='120' height='40' fill='%23f5f5f5'/%3E%3C/svg%3E"
+  codeUrl.value = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40' viewBox='0 0 120 40'%3E%3Crect width='120' height='40' fill='%23f8f9fa'/%3E%3C/svg%3E"
   refreshCodeText.value = "加载中..."
 
   getCodeImg().then(res => {
@@ -213,15 +193,18 @@ getCookie()
 </script>
 
 <style lang='scss' scoped>
-// 基础变量
-$primary-color: #4285f4;
-$secondary-color: #34a853;
-$accent-color: #fbbc05;
-$danger-color: #ea4335;
-$light-gray: #f5f5f5;
-$mid-gray: #e0e0e0;
-$dark-gray: #5f6368;
-$text-color: #202124;
+// 谷歌风格变量
+$google-blue: #165DFF;
+$google-red: #ea4335;
+$google-yellow: #fbbc05;
+$google-green: #34a853;
+$text-primary: #202124;
+$text-secondary: #5f6368;
+$text-link: #1967d2;
+$bg-light: #f8f9fa;
+$border-light: #dadce0;
+$shadow-light: 0 1px 2px rgba(0, 0, 0, 0.1);
+$shadow-hover: 0 2px 8px rgba(0, 0, 0, 0.15);
 
 .login-container {
   min-height: 100vh;
@@ -231,107 +214,109 @@ $text-color: #202124;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e8f0fe 100%);
+  background-color: #fff;
   position: relative;
-  overflow: hidden;
 
-  // 背景装饰
-  .bg-decoration {
+  // 背景渐变装饰
+  .bg-gradient {
     position: absolute;
-    width: 600px;
-    height: 600px;
-    border-radius: 50%;
-    opacity: 0.1;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: linear-gradient(180deg,
+        rgba(241, 243, 244, 0.95) 0%,  /* 谷歌标志性浅灰 */
+        rgba(255, 255, 255, 0.8) 50%,
+        rgba(255, 255, 255, 0) 100%
+    );
     z-index: 0;
-
-    &.top-left {
-      top: -300px;
-      left: -300px;
-      background: radial-gradient(circle, $primary-color 0%, transparent 70%);
-    }
-
-    &.bottom-right {
-      bottom: -300px;
-      right: -300px;
-      background: radial-gradient(circle, $secondary-color 0%, transparent 70%);
-    }
+    pointer-events: none;
   }
 }
 
-// 登录卡片
+// 登录卡片 - 缩小版本
 .login-card {
   width: 100%;
-  max-width: 400px;
-  padding: 32px;
+  max-width: 360px; /* 从450px缩小到360px */
+  padding: 28px; /* 从40px缩小到28px */
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  border: 1px solid $border-light;
+  box-shadow: $shadow-light;
   z-index: 1;
   transition: box-shadow 0.3s ease;
 
   &:hover {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    box-shadow: $shadow-hover;
   }
 
   .brand-area {
     display: flex;
     align-items: center;
-    justify-content: center;
-    margin-bottom: 24px;
+    margin-bottom: 24px; /* 从32px缩小到24px */
 
-    .logo {
-      margin-right: 12px;
+    .google-logo {
+      font-size: 28px; /* 从32px缩小到28px */
+      font-weight: bold;
+      color: $google-blue;
+      margin-right: 10px; /* 从12px缩小到10px */
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
     .app-name {
-      font-size: 22px;
-      color: $text-color;
-      margin: 0;
+      font-size: 20px; /* 从22px缩小到20px */
+      color: $text-primary;
       font-weight: 500;
     }
   }
 
   .login-title {
-    text-align: center;
-    color: $text-color;
-    font-size: 24px;
-    font-weight: 500;
-    margin: 0 0 32px 0;
+    text-align: left;
+    color: $text-primary;
+    font-size: 22px; /* 从24px缩小到22px */
+    font-weight: 400;
+    margin: 0 0 6px 0; /* 从8px缩小到6px */
   }
 
   .custom-input {
-    height: 48px;
-    margin-bottom: 16px;
+    height: 48px; /* 从52px缩小到48px */
+    margin-bottom: 18px; /* 从24px缩小到18px */
     transition: all 0.2s ease;
 
-    &:hover {
-      border-color: $primary-color;
-    }
-
     .el-input__inner {
-      height: 48px;
-      padding: 0 16px;
-      border-radius: 8px;
-      border-color: $mid-gray;
-      font-size: 14px;
+      height: 48px; /* 同步输入框高度 */
+      padding: 0 14px; /* 从16px缩小到14px */
+      border-radius: 4px;
+      border: 1px solid $border-light;
+      font-size: 15px; /* 从16px缩小到15px */
+      color: $text-primary;
+      background-color: #fff;
+      transition: all 0.2s ease;
 
       &:focus {
-        border-color: $primary-color;
-        box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+        border-color: $google-blue;
+        box-shadow: 0 0 0 2px rgba(22, 93, 255, 0.2);
+        outline: none;
+      }
+
+      &::placeholder {
+        color: $text-secondary;
+        opacity: 0.8;
       }
     }
 
     .input-icon {
-      color: $dark-gray;
-      width: 18px;
-      height: 18px;
+      color: $text-secondary;
+      width: 18px; /* 从20px缩小到18px */
+      height: 18px; /* 同步图标大小 */
     }
   }
 
+  // 验证码区域
   .code-group {
     display: flex;
-    gap: 12px;
-    margin-bottom: 16px;
+    gap: 12px; /* 从16px缩小到12px */
+    margin-bottom: 18px; /* 从24px缩小到18px */
 
     .code-input {
       margin-bottom: 0;
@@ -339,83 +324,93 @@ $text-color: #202124;
     }
 
     .code-image-container {
-      width: 120px;
-      height: 48px;
+      width: 100px; /* 从120px缩小到100px */
+      height: 48px; /* 从52px缩小到48px */
+      margin-left: 8px; /* 从12px缩小到8px */
 
       .code-image {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        border-radius: 8px;
+        border-radius: 4px;
         cursor: pointer;
-        background-color: $light-gray;
-        transition: transform 0.2s ease;
+        background-color: $bg-light;
+        border: 1px solid $border-light;
+        transition: all 0.2s ease;
 
         &:hover {
-          transform: scale(1.02);
+          border-color: $google-blue;
         }
       }
     }
   }
 
   .form-actions {
-    margin-top: 8px;
+    margin-top: 6px; /* 从8px缩小到6px */
+
+    .form-options {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px; /* 从24px缩小到18px */
+    }
 
     .remember-checkbox {
-      color: $dark-gray;
-      font-size: 14px;
-      margin-bottom: 20px;
+      color: $text-primary;
+      font-size: 13px; /* 从14px缩小到13px */
       display: flex;
       align-items: center;
 
       .el-checkbox__label {
-        padding-left: 8px;
+        padding-left: 6px; /* 从8px缩小到6px */
       }
 
       .el-checkbox__input.is-checked .el-checkbox__inner {
-        background-color: $primary-color;
-        border-color: $primary-color;
+        background-color: $google-blue;
+        border-color: $google-blue;
       }
     }
 
     .login-button {
       width: 100%;
-      height: 48px;
-      font-size: 16px;
+      height: 48px; /* 从52px缩小到48px */
+      font-size: 15px; /* 从16px缩小到15px */
       font-weight: 500;
-      border-radius: 8px;
-      background-color: $primary-color;
-      border-color: $primary-color;
+      border-radius: 4px;
+      background-color: $google-blue;
+      border-color: $google-blue;
       transition: all 0.2s ease;
 
       &:hover {
-        background-color: #3367d6;
-        border-color: #3367d6;
-        transform: translateY(-1px);
-      }
-
-      &:active {
-        transform: translateY(0);
+        background-color: #0d47a1;
+        border-color: #0d47a1;
       }
 
       &.is-loading {
-        background-color: $primary-color;
-        border-color: $primary-color;
+        background-color: $google-blue;
+        border-color: $google-blue;
       }
     }
 
-    .register-link-container {
+    .register-container {
       text-align: center;
-      margin-top: 24px;
+      margin-top: 24px; /* 从32px缩小到24px */
+
+      .register-text {
+        color: $text-secondary;
+        font-size: 13px; /* 从14px缩小到13px */
+      }
 
       .register-link {
-        color: $primary-color;
+        color: $text-link;
         text-decoration: none;
-        font-size: 14px;
+        font-size: 13px; /* 从14px缩小到13px */
+        font-weight: 500;
+        margin-left: 3px; /* 从4px缩小到3px */
         transition: color 0.2s ease;
 
         &:hover {
-          color: #3367d6;
+          color: #1557b8;
           text-decoration: underline;
         }
       }
@@ -423,23 +418,25 @@ $text-color: #202124;
   }
 }
 
-// 页脚样式
+// 页脚样式 - 略微缩小
 .page-footer {
-  margin-top: 48px;
+  margin-top: 32px; /* 从40px缩小到32px */
   text-align: center;
-  color: $dark-gray;
-  font-size: 12px;
+  color: $text-secondary;
+  font-size: 11px; /* 从12px缩小到11px */
   z-index: 1;
 
   .footer-links {
-    margin-bottom: 8px;
+    margin-bottom: 10px; /* 从12px缩小到10px */
 
     .footer-link {
       color: inherit;
       text-decoration: none;
-      margin: 0 8px;
+      margin: 0 10px; /* 从12px缩小到10px */
+      transition: color 0.2s ease;
 
       &:hover {
+        color: $text-primary;
         text-decoration: underline;
       }
     }
@@ -450,16 +447,35 @@ $text-color: #202124;
   }
 }
 
-// 响应式调整
-@media (max-width: 480px) {
-  .login-card {
-    padding: 24px;
-    box-shadow: none;
-    background: transparent;
+// 响应式调整 - 适配更小屏幕
+@media (max-width: 500px) {
+  .bg-gradient {
+    background: #fff !important;
   }
 
-  .bg-decoration {
-    display: none;
+  .login-card {
+    padding: 20px; /* 从24px缩小到20px */
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100%;
+    margin-top: 20px; /* 距顶部50px */
+    margin-bottom: auto; /* 抵消flex布局的居中效果 */
+  }
+
+  .brand-area {
+    margin-bottom: 20px; /* 从24px缩小到20px */
+  }
+
+  .login-title {
+    font-size: 20px; /* 从22px缩小到20px */
+  }
+
+  .code-group {
+    gap: 10px; /* 从12px缩小到10px */
+  }
+
+  .code-image-container {
+    width: 90px !important; /* 从100px缩小到90px */
   }
 }
 </style>
