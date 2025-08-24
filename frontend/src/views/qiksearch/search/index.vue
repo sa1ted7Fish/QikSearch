@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <!-- 初始状态的搜索区域（包含logo和搜索框） -->
+    <!-- 初始状态的搜索区域（样式不变） -->
     <div class="initial-search-area" :class="{ 'searched': hasSearched }">
       <!-- Logo（搜索后隐藏） -->
       <div class="logo-container" v-if="!hasSearched">
@@ -11,7 +11,7 @@
         >
       </div>
 
-      <!-- 搜索框（搜索后上移） -->
+      <!-- 搜索框（搜索后上移，样式不变） -->
       <div class="search-container">
         <div class="search-group">
           <el-input
@@ -32,23 +32,63 @@
       </div>
     </div>
 
-    <!-- 搜索结果区域 -->
+    <!-- 搜索结果区域（核心：通过容器结构适配移动端按钮位置） -->
     <div class="results-wrapper" v-if="hasSearched">
-      <!-- 搜索统计信息 -->
-      <div class="search-stats" v-if="total > 0 && !loading">
-        <span>找到约 {{ total }} 条结果（用时 {{ responseTime }} 秒）</span>
+      <!-- 核心优化：自适应布局容器（网页端横向排列，移动端纵向排列且按钮在上） -->
+      <div class="search-header-adapt" v-if="!loading">
+        <!-- 移动端：先显示跳转按钮（在结果数上方） -->
+        <div class="top-engine-entries mobile-first">
+          <el-button
+              type="default"
+              @click="goToSearchEngine('baidu')"
+              class="engine-btn baidu-btn"
+              size="mini"
+          >
+            <i class="el-icon-search"></i> 去百度
+          </el-button>
+          <el-button
+              type="default"
+              @click="goToSearchEngine('bing')"
+              class="engine-btn bing-btn"
+              size="mini"
+          >
+            <i class="el-icon-search"></i> 去必应
+          </el-button>
+        </div>
+
+        <!-- 原有搜索统计信息 -->
+        <div class="search-stats" v-if="total > 0">
+          <span>找到约 {{ total }} 条结果（用时 {{ responseTime }} 秒）</span>
+        </div>
+
+        <!-- 网页端：显示跳转按钮（在结果数右侧，与原位置一致） -->
+        <div class="top-engine-entries desktop-only">
+          <el-button
+              type="default"
+              @click="goToSearchEngine('baidu')"
+              class="engine-btn baidu-btn"
+              size="mini"
+          >
+            <i class="el-icon-search"></i> 去百度
+          </el-button>
+          <el-button
+              type="default"
+              @click="goToSearchEngine('bing')"
+              class="engine-btn bing-btn"
+              size="mini"
+          >
+            <i class="el-icon-search"></i> 去必应
+          </el-button>
+        </div>
       </div>
 
-      <!-- 结果展示区域 -->
+      <!-- 结果展示区域（样式不变） -->
       <div class="results-container" v-if="total > 0 && !loading">
         <div class="result-card" v-for="(item, index) in tableData" :key="index">
-
           <div class="result-title">
             <a href="javascript:void(0)" @click="handleResultClick(item)">{{ item.title }}</a>
           </div>
-
           <div class="result-snippet" v-html="item.highlightContent"></div>
-
           <!-- 结果预览信息 -->
           <div class="result-actions" v-if="item.htmlPath">
             <a href="javascript:void(0)" @click="handleResultClick(item)" class="preview-link">查看详情</a>
@@ -56,7 +96,7 @@
         </div>
       </div>
 
-      <!-- 分页控件 -->
+      <!-- 分页控件（样式不变） -->
       <div class="pagination-container" v-if="total > 0 && !loading">
         <pagination
             :total="total"
@@ -66,13 +106,13 @@
         />
       </div>
 
-      <!-- 无结果提示 -->
+      <!-- 无结果提示（样式不变） -->
       <el-empty
           v-if="hasSearched && total === 0 && !loading"
           description="没有找到匹配的内容"
       ></el-empty>
 
-      <!-- 结果不满意跳转其他搜索引擎 -->
+      <!-- 保留原有：底部跳转按钮 -->
       <div class="search-other" v-if="hasSearched && !loading">
         <span>结果不满意？</span>
         <el-button
@@ -92,15 +132,22 @@
       </div>
     </div>
 
-    <!-- 加载状态 -->
+    <!-- 加载状态（样式不变） -->
     <div class="loading-container" v-if="loading">
       <el-loading :text="'搜索中，请稍候...'" fullscreen></el-loading>
     </div>
+
+    <!-- 回到顶部组件 -->
+    <el-backtop
+        :right="20"
+        :bottom="100"
+        :visibility-height="100"
+    />
   </div>
 </template>
 
 <script>
-import { getList } from "@/api/qiksearch/search";
+import { getList } from "@/api/qiksearch-dev/search";
 
 export default {
   name: "Search",
@@ -124,9 +171,7 @@ export default {
       this.hasSearched = true;
       const currentKeyword = this.queryParams.keyword.trim();
 
-      // 判断是否为新关键词（与上一次不同）
       if (currentKeyword !== this.lastKeyword) {
-        // 新关键词搜索：重置为第1页，并更新记录的关键词
         this.queryParams.pageNum = 1;
         this.lastKeyword = currentKeyword;
       }
@@ -158,7 +203,6 @@ export default {
         this.$message.warning('未找到对应的内容页面');
       }
     },
-    // 跳转到其他搜索引擎
     goToSearchEngine(engine) {
       const keyword = this.queryParams.keyword.trim();
       if (!keyword) {
@@ -166,11 +210,8 @@ export default {
         return;
       }
 
-      // 编码关键词（处理中文等特殊字符）
       const encodedKeyword = encodeURIComponent(keyword);
       let url = '';
-
-      // 生成对应搜索引擎的搜索URL
       switch(engine) {
         case 'baidu':
           url = `https://www.baidu.com/s?wd=${encodedKeyword}`;
@@ -181,8 +222,6 @@ export default {
         default:
           return;
       }
-
-      // 打开新窗口跳转
       window.open(url, '_blank');
     },
   }
@@ -190,7 +229,7 @@ export default {
 </script>
 
 <style scoped>
-/* 基础样式 - 网页端保持原样 */
+/* 基础样式保持不变（确保未搜索时布局正常） */
 .app-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -219,7 +258,7 @@ export default {
 }
 
 .logo-img {
-  height: 100px; /* 网页端logo尺寸 */
+  height: 100px;
   width: auto;
   object-fit: contain;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
@@ -230,7 +269,6 @@ export default {
   text-align: center;
 }
 
-/* 搜索框与按钮组合 - 网页端样式 */
 .search-group {
   display: inline-flex;
   align-items: stretch;
@@ -250,10 +288,65 @@ export default {
   padding: 0 28px;
   font-size: 17px;
   border-radius: 0 4px 4px 0;
-  margin-left: -1px; /* 消除间隙 */
+  margin-left: -1px;
 }
 
-/* 结果区域样式 */
+/* 核心优化：自适应布局容器（控制网页端/移动端的按钮位置） */
+.search-header-adapt {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-left: 8px;
+  line-height: 32px;
+}
+
+/* 网页端：仅显示右侧按钮，隐藏移动端顶部按钮 */
+.desktop-only {
+  display: flex;
+  gap: 12px; /* 按钮间距12px，与原样式一致 */
+}
+.mobile-first {
+  display: none; /* 网页端隐藏移动端专用按钮容器 */
+}
+
+/* 顶部按钮样式（复用原样式，确保视觉统一） */
+.top-engine-entries .engine-btn.baidu-btn,
+.top-engine-entries .engine-btn.bing-btn {
+  padding: 6px 18px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #333;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.engine-btn.baidu-btn {
+  background-color: #f8f8f8;
+  border-color: #e5e5e5;
+}
+
+.engine-btn.baidu-btn:hover {
+  background-color: #f0f0f0;
+  border-color: #d0d0d0;
+  color: #000;
+  text-decoration: none;
+}
+
+.engine-btn.bing-btn {
+  background-color: #f0f7ff;
+  border-color: #d1e0fe;
+}
+
+.engine-btn.bing-btn:hover {
+  background-color: #e1efff;
+  border-color: #b3d1ff;
+  color: #0066cc;
+  text-decoration: none;
+}
+
+/* 结果区域其他样式保持不变 */
 .results-wrapper {
   margin-top: 20px;
 }
@@ -261,8 +354,7 @@ export default {
 .search-stats {
   color: #666;
   font-size: 14px;
-  margin-bottom: 20px;
-  padding-left: 8px;
+  margin: 0;
 }
 
 .results-container {
@@ -352,6 +444,7 @@ export default {
   justify-content: center;
 }
 
+/* 底部跳转按钮样式（保持原有） */
 .search-other {
   margin: 30px 0;
   padding: 15px;
@@ -373,41 +466,73 @@ export default {
   text-decoration: underline;
 }
 
-/* 移动端适配 - 仅修改移动端样式 */
+/* 移动端适配：核心控制按钮位置（在结果数上方） */
 @media (max-width: 768px) {
   .app-container {
-    padding: 0 10px; /* 最小化内边距，最大化可用空间 */
+    padding: 0 10px;
   }
 
-  /* 移动端logo缩小 */
   .logo-img {
-    height: 60px; /* 相比网页端缩小40% */
+    height: 60px;
   }
 
-  /* 搜索框占满屏幕宽度 */
   .search-group {
-    width: 100%; /* 搜索组占满容器宽度 */
+    width: 100%;
   }
 
   .search-input {
-    width: 100% !important; /* 强制与屏幕等宽 */
-    border-right: 1px solid #dcdfe6; /* 恢复完整边框 */
-    border-radius: 4px; /* 恢复四角圆角 */
+    width: 100% !important;
+    border-right: 1px solid #dcdfe6;
+    border-radius: 4px;
   }
 
-  /* 移动端隐藏搜索按钮 */
   .search-btn {
     display: none;
   }
 
-  /* 调整初始区域位置，适应小屏幕 */
   .initial-search-area {
     margin-top: 80px;
     min-height: 250px;
   }
 
+  /* 移动端：自适应容器改为纵向排列，按钮在结果数上方 */
+  .search-header-adapt {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: normal;
+    margin-bottom: 15px;
+  }
+
+  /* 移动端：显示顶部按钮容器（在结果数上方），隐藏右侧按钮容器 */
+  .mobile-first {
+    display: flex;
+    width: 100%;
+    box-sizing: border-box;
+    padding-right: 8px;
+    gap: 10px;
+  }
+  .desktop-only {
+    display: none; /* 移动端隐藏网页端右侧按钮 */
+  }
+
+  /* 移动端按钮：宽度自适应，占满可用空间，易点击 */
+  .mobile-first .engine-btn.baidu-btn,
+  .mobile-first .engine-btn.bing-btn {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+  }
+
+  .search-stats {
+    padding-left: 0;
+    width: 100%;
+  }
+
   .search-other {
     flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 10px;
   }
 
   .result-title a {

@@ -85,12 +85,12 @@ export const constantRoutes = [
     name: 'Search',
     meta: { title: '搜索', icon: 'search' }
   },
-  {
-    path: '/s-dev',
-    component: () => import('@/views/qiksearch/search-dev/index'),
-    name: 'Search-Dev',
-    meta: { title: '搜索(测试版)', icon: 'search' }
-  },
+  // {
+  //   path: '/s-dev',
+  //   component: () => import('@/views/qiksearch/search-dev/index'),
+  //   name: 'Search-Dev',
+  //   meta: { title: '搜索(测试版)', icon: 'search' }
+  // },
   {
     path: '/a',
     component: () => import('@/views/qiksearch/add/index'),

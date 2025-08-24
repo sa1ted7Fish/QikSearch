@@ -76,6 +76,9 @@ public class QikSearchDevServiceImpl implements IQikSearchDevService {
 
             // 获取文档原始数据
             Map<String, Object> sourceMap = hit.getSourceAsMap();
+            // 获取得分
+            Float score = hit.getScore();
+
             // 获取文档ID
             String documentId = hit.getId();
             resultMap.put("id", documentId != null ? documentId : "");
@@ -88,9 +91,9 @@ public class QikSearchDevServiceImpl implements IQikSearchDevService {
 
             if ("题库".equals(category)) {
                 // 如果类别是"题库"，则格式化为"题库:ID值"
-                resultMap.put("title", category + ": [" + date + "] " + documentId);
+                resultMap.put("title", score + category + ": [" + date + "] " + documentId);
             } else {
-                resultMap.put("title", category != null ? category + ": " + title : title);
+                resultMap.put("title", category != null ? score + category + ": " + title : score + title);
             }
 
             // 提取html_path字段
@@ -122,59 +125,68 @@ public class QikSearchDevServiceImpl implements IQikSearchDevService {
     }
 
     public static SearchSourceBuilder buildUniversalQuery(String keyword) {
-        // 创建搜索源构建器
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
-
-        // 构建bool查询（对应ES中的bool.should）
         BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
 
-        // 1. term查询（full_text.keyword精确匹配，boost=10.0）
-        boolQuery.should(QueryBuilders.termQuery("full_text.keyword", keyword)
-                .boost(10.0f));
+        // 1. 核心：严格短语匹配（完整句截取，无挖空/无修改）
+        // 权重拉到最高（50分），确保完全匹配的原文绝对优先，不受词频/时间干扰
+        boolQuery.should(QueryBuilders.constantScoreQuery(
+                QueryBuilders.matchPhraseQuery("full_text", keyword)
+                        .slop(0)  // 词项严格连续，对应“原文直接截取的完整句题目”
+        ).boost(50.0f));
 
-        // 2. 严格短语匹配（slop=1，boost=9.0）
-        boolQuery.should(QueryBuilders.matchPhraseQuery("full_text", keyword)
-                .slop(1)
-                .boost(9.0f));
+        // 2. 挖空句专项匹配（中间插入2-4个词，你的核心场景）
+        // 权重次高（35分），仅低于完整句，确保挖空题能精准命中原文
+        boolQuery.should(QueryBuilders.constantScoreQuery(
+                QueryBuilders.matchPhraseQuery("full_text", keyword)
+                        .slop(6)  // 适配2-4个挖空词，预留标点/助词冗余
+        ).boost(35.0f));
 
-        // 3. 宽松短语匹配（slop=3，boost=7.0）
-        boolQuery.should(QueryBuilders.matchPhraseQuery("full_text", keyword)
-                .slop(3)
-                .boost(7.0f));
+        // 3. 宽松短语匹配（轻微改写：少标点/多助词，非挖空类修改）
+        // 权重中等（15分），低于挖空句，避免轻微改写的结果干扰核心场景
+        boolQuery.should(QueryBuilders.constantScoreQuery(
+                QueryBuilders.matchPhraseQuery("full_text", keyword)
+                        .slop(2)  // 仅允许1-2个词的差异，控制宽松度
+        ).boost(15.0f));
 
-        // 4. 基础匹配（AND逻辑，100%匹配，ik_max_word分词，boost=3.0）
-        boolQuery.should(QueryBuilders.matchQuery("full_text", keyword)
-                .analyzer("ik_max_word")
-                .operator(Operator.AND)
-                .minimumShouldMatch("100%")
-                .boost(3.0f));
+        // 4. 精确分词匹配（所有词必现，无顺序要求，仅作次兜底）
+        // 权重压到极低（3分），避免“词频高但句子不匹配”的文章反超
+        boolQuery.should(QueryBuilders.constantScoreQuery(
+                QueryBuilders.matchQuery("full_text", keyword)
+                        .analyzer("ik_max_word")
+                        .operator(Operator.AND)
+                        .minimumShouldMatch("100%")
+        ).boost(3.0f));
 
-        // 5. 兜底匹配（80%匹配，boost=1.0）
-        boolQuery.should(QueryBuilders.matchQuery("full_text", keyword)
-                .minimumShouldMatch("80%")
-                .boost(1.0f));
+        // 5. 兜底匹配（80%词匹配，边缘召回，权重最低）
+        // 仅用于“无短语匹配”的极端情况，避免无结果返回
+        boolQuery.should(QueryBuilders.constantScoreQuery(
+                QueryBuilders.matchQuery("full_text", keyword)
+                        .analyzer("ik_max_word")
+                        .minimumShouldMatch("80%")
+        ).boost(1.0f));
 
-        // 构建日期衰减函数（gauss函数，参数与ES一致）
+        // 日期衰减：优化新旧文章平衡（新文章有优势，旧文章不被过度压制）
         FunctionScoreQueryBuilder.FilterFunctionBuilder gaussFunction =
                 new FunctionScoreQueryBuilder.FilterFunctionBuilder(
                         ScoreFunctionBuilders.gaussDecayFunction(
                                 "date",       // 日期字段
-                                "now",        // 原点（当前时间）
-                                "60d",        // 缩放因子（60天）
-                                "7d",         // 偏移量（7天）
-                                0.8f          // 衰减系数
+                                "now",        // 原点：当前时间
+                                "730d",       // 缩放因子：2年（覆盖你的“最早两年前文章”需求）
+                                "30d",        // 偏移量：近30天文章不衰减（匹配“部分题目来自上一周/近几月”）
+                                0.6f          // 衰减系数：减缓衰减（2年前文章仍有50%左右得分）
                         )
                 );
 
-        // 构建function_score查询（组合bool查询和衰减函数）
+        // 组合查询：短语匹配固定分 × 时间衰减分（彻底排除词频影响）
         FunctionScoreQueryBuilder functionScoreQuery = QueryBuilders.functionScoreQuery(
-                boolQuery,  // 基础查询
-                new FunctionScoreQueryBuilder.FilterFunctionBuilder[]{gaussFunction}  // 函数数组
-        ).boostMode(CombineFunction.MULTIPLY);  // 得分组合方式（相乘）
+                boolQuery,
+                new FunctionScoreQueryBuilder.FilterFunctionBuilder[]{gaussFunction}
+        ).boostMode(CombineFunction.MULTIPLY);
 
-        // 设置查询和最小得分阈值
+        // 最小得分阈值：过滤低于5分的无效结果（保留核心匹配+部分次优结果）
+//        sourceBuilder.minScore(5.0f);
         sourceBuilder.query(functionScoreQuery);
-        sourceBuilder.minScore(20.0f);
 
         return sourceBuilder;
     }
